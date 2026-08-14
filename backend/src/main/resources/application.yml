@@ -10,6 +10,12 @@ spring:
     datatype:
       datetime:
         write-dates-as-timestamps: false
+  flyway:
+    enabled: true
+    # One migration set for both H2 and PostgreSQL - see the header comment in
+    # V1__initial_schema.sql for how the SQL stays portable.
+    locations: classpath:db/migration
+    baseline-on-migrate: false
 
 springdoc:
   swagger-ui:
@@ -20,10 +26,47 @@ springdoc:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only health is exposed; it backs the docker-compose healthcheck and is
+        # the one actuator endpoint left publicly readable in SecurityConfig.
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+taskflow:
+  jwt:
+    # NEVER hardcode a production secret. This default exists purely so that
+    # `mvn spring-boot:run` and `mvn test` work with zero setup; it is a
+    # well-known value and must be overridden anywhere real via the JWT_SECRET
+    # environment variable (docker-compose refuses to start without it).
+    secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-in-any-real-deployment}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
+    issuer: taskflow
+  cors:
+    # Origins allowed to call the API from a browser. The Vite dev server and
+    # `vite preview` by default; in Docker the frontend is same-origin behind
+    # nginx, so no CORS is involved there.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+  admin:
+    # Optional bootstrap of a single ADMIN account on startup. Needed because
+    # registration always creates USER accounts - there is deliberately no way
+    # to self-assign a role over HTTP. Disabled unless explicitly switched on.
+    enabled: ${ADMIN_SEED_ENABLED:false}
+    username: ${ADMIN_USERNAME:admin}
+    email: ${ADMIN_EMAIL:admin@taskflow.local}
+    password: ${ADMIN_PASSWORD:}
+
 ---
 # ---------------------------------------------------------------------------
 # dev profile (default) - H2 in-memory database, no external services needed.
 # Run with: mvn spring-boot:run  (or just run the app, dev is the default)
+#
+# Flyway creates the schema; JPA only validates that the entities match it.
 # ---------------------------------------------------------------------------
 spring:
   config:
@@ -40,12 +83,23 @@ spring:
       path: /h2-console
   jpa:
     hibernate:
-      ddl-auto: update
+      # validate, not update: the schema is owned by Flyway, and any drift
+      # between the migrations and the entities fails the application at boot
+      # instead of silently altering tables.
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+
+taskflow:
+  admin:
+    # Convenience for local development and the curl smoke test: seeds
+    # admin / admin12345 so the ADMIN-only delete endpoint is reachable.
+    # These credentials are development-only and are never used in prod.
+    enabled: ${ADMIN_SEED_ENABLED:true}
+    password: ${ADMIN_PASSWORD:admin12345}
 
 logging:
   level:
@@ -53,10 +107,9 @@ logging:
 
 ---
 # ---------------------------------------------------------------------------
-# prod profile - PostgreSQL. Documented for reference; not required to run
-# the project locally. To actually use it, provide a real Postgres instance
-# and start the app with: java -jar app.jar --spring.profiles.active=prod
-# (override the placeholders below with real values via env vars).
+# prod profile - PostgreSQL. This is what docker-compose runs the backend with.
+# Start with: java -jar app.jar --spring.profiles.active=prod
+# supplying DB_URL / DB_USERNAME / DB_PASSWORD / JWT_SECRET as env vars.
 # ---------------------------------------------------------------------------
 spring:
   config:
@@ -69,12 +122,12 @@ spring:
     password: ${DB_PASSWORD:taskflow}
   jpa:
     hibernate:
+      # Same as dev: Flyway owns the schema, JPA only checks the entities match.
       ddl-auto: validate
     show-sql: false
     open-in-view: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+    # No explicit hibernate.dialect - Hibernate detects PostgreSQLDialect from
+    # the JDBC connection, and setting it by hand logs HHH90000025.
 
 logging:
   level:

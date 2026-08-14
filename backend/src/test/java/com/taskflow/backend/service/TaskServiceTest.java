@@ -3,9 +3,11 @@ package com.taskflow.backend.service;
 import com.taskflow.backend.dto.TaskRequest;
 import com.taskflow.backend.dto.TaskResponse;
 import com.taskflow.backend.entity.Project;
+import com.taskflow.backend.entity.Role;
 import com.taskflow.backend.entity.Task;
 import com.taskflow.backend.entity.TaskPriority;
 import com.taskflow.backend.entity.TaskStatus;
+import com.taskflow.backend.entity.User;
 import com.taskflow.backend.exception.ResourceNotFoundException;
 import com.taskflow.backend.repository.ProjectRepository;
 import com.taskflow.backend.repository.TaskRepository;
@@ -32,6 +34,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
 
+    private static final Long OWNER_ID = 7L;
+
     @Mock
     private TaskRepository taskRepository;
 
@@ -46,7 +50,10 @@ class TaskServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        project = new Project("Website Revamp", "Redesign the marketing site");
+        User owner = new User("alice", "alice@example.com", "{bcrypt}hash", Role.USER);
+        owner.setId(OWNER_ID);
+
+        project = new Project("Website Revamp", "Redesign the marketing site", owner);
         setId(project, 1L);
 
         task = new Task("Design homepage", "Create wireframes", TaskStatus.TODO, TaskPriority.HIGH,
@@ -68,9 +75,9 @@ class TaskServiceTest {
 
     @Test
     void findById_whenFound_returnsResponse() {
-        when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndProjectOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(task));
 
-        TaskResponse response = taskService.findById(10L);
+        TaskResponse response = taskService.findById(10L, OWNER_ID);
 
         assertThat(response.title()).isEqualTo("Design homepage");
         assertThat(response.projectId()).isEqualTo(1L);
@@ -79,28 +86,28 @@ class TaskServiceTest {
 
     @Test
     void findById_whenMissing_throwsNotFound() {
-        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+        when(taskRepository.findByIdAndProjectOwnerId(99L, OWNER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> taskService.findById(99L))
+        assertThatThrownBy(() -> taskService.findById(99L, OWNER_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
     void findByProject_whenProjectMissing_throwsNotFound() {
-        when(projectRepository.findById(5L)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdAndOwnerId(5L, OWNER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> taskService.findByProject(5L))
+        assertThatThrownBy(() -> taskService.findByProject(5L, OWNER_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(taskRepository, never()).findByProjectId(any());
+        verify(taskRepository, never()).findByProjectIdAndProjectOwnerIdOrderByIdAsc(any(), any());
     }
 
     @Test
     void findByProject_whenProjectExists_returnsTasks() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(taskRepository.findByProjectId(1L)).thenReturn(List.of(task));
+        when(projectRepository.findByIdAndOwnerId(1L, OWNER_ID)).thenReturn(Optional.of(project));
+        when(taskRepository.findByProjectIdAndProjectOwnerIdOrderByIdAsc(1L, OWNER_ID)).thenReturn(List.of(task));
 
-        List<TaskResponse> result = taskService.findByProject(1L);
+        List<TaskResponse> result = taskService.findByProject(1L, OWNER_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).projectName()).isEqualTo("Website Revamp");
@@ -108,9 +115,10 @@ class TaskServiceTest {
 
     @Test
     void findByStatus_returnsFilteredTasks() {
-        when(taskRepository.findByStatus(TaskStatus.TODO)).thenReturn(List.of(task));
+        when(taskRepository.findByProjectOwnerIdAndStatusOrderByIdAsc(OWNER_ID, TaskStatus.TODO))
+                .thenReturn(List.of(task));
 
-        List<TaskResponse> result = taskService.findByStatus(TaskStatus.TODO);
+        List<TaskResponse> result = taskService.findByStatus(TaskStatus.TODO, OWNER_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).status()).isEqualTo(TaskStatus.TODO);
@@ -126,14 +134,14 @@ class TaskServiceTest {
                 LocalDate.of(2026, 9, 15),
                 1L);
 
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndOwnerId(1L, OWNER_ID)).thenReturn(Optional.of(project));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
             Task t = invocation.getArgument(0);
             setTaskId(t, 55L);
             return t;
         });
 
-        TaskResponse response = taskService.create(request);
+        TaskResponse response = taskService.create(request, OWNER_ID);
 
         assertThat(response.id()).isEqualTo(55L);
         assertThat(response.title()).isEqualTo("Write tests");
@@ -150,9 +158,9 @@ class TaskServiceTest {
                 null,
                 404L);
 
-        when(projectRepository.findById(404L)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdAndOwnerId(404L, OWNER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> taskService.create(request))
+        assertThatThrownBy(() -> taskService.create(request, OWNER_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(taskRepository, never()).save(any());
@@ -160,7 +168,7 @@ class TaskServiceTest {
 
     @Test
     void update_whenFound_updatesFields() {
-        when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndProjectOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(task));
 
         TaskRequest request = new TaskRequest(
                 "Design homepage v2",
@@ -170,7 +178,7 @@ class TaskServiceTest {
                 LocalDate.of(2026, 10, 1),
                 1L);
 
-        TaskResponse response = taskService.update(10L, request);
+        TaskResponse response = taskService.update(10L, request, OWNER_ID);
 
         assertThat(response.title()).isEqualTo("Design homepage v2");
         assertThat(response.status()).isEqualTo(TaskStatus.IN_PROGRESS);
@@ -179,10 +187,27 @@ class TaskServiceTest {
 
     @Test
     void delete_whenFound_deletesEntity() {
-        when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndProjectOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(task));
 
-        taskService.delete(10L);
+        taskService.delete(10L, OWNER_ID);
 
         verify(taskRepository, times(1)).delete(task);
+    }
+
+    /**
+     * Re-parenting a task is bounded by ownership: you cannot move your own task
+     * into a project you do not own, which would otherwise be a way to write into
+     * someone else's project.
+     */
+    @Test
+    void update_whenTargetProjectNotOwned_throwsNotFound() {
+        when(taskRepository.findByIdAndProjectOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(task));
+        when(projectRepository.findByIdAndOwnerId(2L, OWNER_ID)).thenReturn(Optional.empty());
+
+        TaskRequest request = new TaskRequest(
+                "Moved task", null, TaskStatus.TODO, TaskPriority.LOW, null, 2L);
+
+        assertThatThrownBy(() -> taskService.update(10L, request, OWNER_ID))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

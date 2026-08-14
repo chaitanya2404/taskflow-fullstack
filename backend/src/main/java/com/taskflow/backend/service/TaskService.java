@@ -13,6 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Task business logic.
+ *
+ * <p>Tasks are owned transitively through their project, so every query is
+ * filtered on {@code project.owner.id}. As in {@link ProjectService}, another
+ * user's task reads as "not found".
+ */
 @Service
 @Transactional
 public class TaskService {
@@ -25,40 +32,45 @@ public class TaskService {
         this.projectRepository = projectRepository;
     }
 
-    public List<TaskResponse> findAll() {
-        return taskRepository.findAll().stream()
+    @Transactional(readOnly = true)
+    public List<TaskResponse> findAll(Long ownerId) {
+        return taskRepository.findByProjectOwnerIdOrderByIdAsc(ownerId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public TaskResponse findById(Long id) {
-        return toResponse(getTaskOrThrow(id));
+    public TaskResponse findById(Long id, Long ownerId) {
+        return toResponse(getOwnedTaskOrThrow(id, ownerId));
     }
 
-    public List<TaskResponse> findByProject(Long projectId) {
-        // ensure the project exists before filtering, so callers get a 404 instead of an empty list
-        getProjectOrThrow(projectId);
-        return taskRepository.findByProjectId(projectId).stream()
+    @Transactional(readOnly = true)
+    public List<TaskResponse> findByProject(Long projectId, Long ownerId) {
+        // Check the project first so an unknown (or someone else's) project id
+        // gives a 404 rather than an empty list.
+        getOwnedProjectOrThrow(projectId, ownerId);
+        return taskRepository.findByProjectIdAndProjectOwnerIdOrderByIdAsc(projectId, ownerId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public List<TaskResponse> findByStatus(TaskStatus status) {
-        return taskRepository.findByStatus(status).stream()
+    @Transactional(readOnly = true)
+    public List<TaskResponse> findByStatus(TaskStatus status, Long ownerId) {
+        return taskRepository.findByProjectOwnerIdAndStatusOrderByIdAsc(ownerId, status).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public List<TaskResponse> findByProjectAndStatus(Long projectId, TaskStatus status) {
-        getProjectOrThrow(projectId);
-        return taskRepository.findByProjectIdAndStatus(projectId, status).stream()
+    @Transactional(readOnly = true)
+    public List<TaskResponse> findByProjectAndStatus(Long projectId, TaskStatus status, Long ownerId) {
+        getOwnedProjectOrThrow(projectId, ownerId);
+        return taskRepository.findByProjectIdAndProjectOwnerIdAndStatusOrderByIdAsc(projectId, ownerId, status).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public TaskResponse create(TaskRequest request) {
-        Project project = getProjectOrThrow(request.projectId());
+    public TaskResponse create(TaskRequest request, Long ownerId) {
+        Project project = getOwnedProjectOrThrow(request.projectId(), ownerId);
         Task task = new Task(
                 request.title(),
                 request.description(),
@@ -67,16 +79,15 @@ public class TaskService {
                 request.dueDate(),
                 project
         );
-        Task saved = taskRepository.save(task);
-        return toResponse(saved);
+        return toResponse(taskRepository.save(task));
     }
 
-    public TaskResponse update(Long id, TaskRequest request) {
-        Task task = getTaskOrThrow(id);
+    public TaskResponse update(Long id, TaskRequest request, Long ownerId) {
+        Task task = getOwnedTaskOrThrow(id, ownerId);
 
         if (!task.getProject().getId().equals(request.projectId())) {
-            Project newProject = getProjectOrThrow(request.projectId());
-            task.setProject(newProject);
+            // Re-parenting is only allowed into a project the caller also owns.
+            task.setProject(getOwnedProjectOrThrow(request.projectId(), ownerId));
         }
 
         task.setTitle(request.title());
@@ -87,18 +98,17 @@ public class TaskService {
         return toResponse(task);
     }
 
-    public void delete(Long id) {
-        Task task = getTaskOrThrow(id);
-        taskRepository.delete(task);
+    public void delete(Long id, Long ownerId) {
+        taskRepository.delete(getOwnedTaskOrThrow(id, ownerId));
     }
 
-    private Task getTaskOrThrow(Long id) {
-        return taskRepository.findById(id)
+    private Task getOwnedTaskOrThrow(Long id, Long ownerId) {
+        return taskRepository.findByIdAndProjectOwnerId(id, ownerId)
                 .orElseThrow(() -> ResourceNotFoundException.forEntity("Task", id));
     }
 
-    private Project getProjectOrThrow(Long id) {
-        return projectRepository.findById(id)
+    private Project getOwnedProjectOrThrow(Long id, Long ownerId) {
+        return projectRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> ResourceNotFoundException.forEntity("Project", id));
     }
 

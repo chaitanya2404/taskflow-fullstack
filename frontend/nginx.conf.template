@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# nginx config for the built SPA.
+#
+# Two jobs: serve the static bundle with client-side routing intact, and proxy
+# /api to the backend container so the browser only ever talks to one origin
+# (which also means no CORS preflights in the Docker setup).
+# ---------------------------------------------------------------------------
+
+server {
+    listen       80;
+    listen       [::]:80;
+    server_name  _;
+
+    root  /usr/share/nginx/html;
+    index index.html;
+
+    # Don't advertise the exact nginx version.
+    server_tokens off;
+
+    gzip              on;
+    gzip_vary         on;
+    gzip_min_length   1024;
+    gzip_proxied      any;
+    gzip_types        text/plain text/css application/javascript application/json
+                      image/svg+xml application/xml;
+
+    # ---- API proxy --------------------------------------------------------
+    # BACKEND_ORIGIN is substituted at container start (see docker-entrypoint.d
+    # templating in the Dockerfile) so the upstream is configurable.
+    location /api/ {
+        proxy_pass         ${BACKEND_ORIGIN};
+        proxy_http_version 1.1;
+
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        # The Authorization header carries the JWT and must survive the hop.
+        proxy_set_header   Authorization     $http_authorization;
+        proxy_pass_request_headers on;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    60s;
+    }
+
+    # Swagger UI and the OpenAPI document, handy when running the full stack.
+    location ~ ^/(swagger-ui|v3/api-docs|actuator/health) {
+        proxy_pass         ${BACKEND_ORIGIN};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    # ---- Static assets ----------------------------------------------------
+    # Vite emits content-hashed filenames under /assets, so they can be cached
+    # indefinitely and busted by the hash changing.
+    location /assets/ {
+        expires    1y;
+        add_header Cache-Control "public, immutable";
+        try_files  $uri =404;
+    }
+
+    # index.html must never be cached, otherwise clients keep loading an old
+    # bundle after a deploy.
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # ---- SPA fallback -----------------------------------------------------
+    # This is what makes deep links work: /projects/42 is not a file on disk,
+    # so nginx hands back index.html and React Router takes it from there.
+    # Without this, a refresh on any route other than / would 404.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

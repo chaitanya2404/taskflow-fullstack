@@ -20,6 +20,7 @@
     <properties>
         <java.version>25</java.version>
         <springdoc.version>3.1.0</springdoc.version>
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencies>
@@ -34,6 +35,67 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!--
+          JWT (JJWT 0.12.x).
+
+          jjwt-api is the compile-time surface; jjwt-impl and a JSON binding are
+          runtime-only, which is how JJWT is designed to be consumed.
+
+          The JSON binding is deliberately jjwt-gson rather than jjwt-jackson:
+          Spring Boot 4 ships Jackson 3 (`tools.jackson`), while jjwt-jackson
+          depends on Jackson 2 (`com.fasterxml.jackson.core:jackson-databind`).
+          Pulling jjwt-jackson in would put two Jackson majors on the classpath,
+          where Spring Framework 7 may register Jackson 2 HTTP message converters
+          that ignore the `spring.jackson.*` configuration in application.yml.
+          Gson is self-contained and shares nothing with the web layer.
+        -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-gson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+          Flyway: versioned schema migrations (JPA runs with ddl-auto: validate).
+
+          Note the starter rather than a bare org.flywaydb:flyway-core. Spring Boot 4
+          split auto-configuration out of spring-boot-autoconfigure into per-technology
+          modules, so flyway-core on its own puts the library on the classpath without
+          FlywayAutoConfiguration - migrations silently never run and Hibernate then
+          fails validation with "missing table". The starter pulls in
+          spring-boot-flyway, which carries the auto-configuration.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <!-- Flyway needs a per-vendor module for PostgreSQL support (prod profile). -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- H2 for dev/test in-memory database -->

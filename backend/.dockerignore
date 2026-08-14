@@ -1,0 +1,18 @@
+# Keep the build context small: everything here is either rebuilt inside the
+# image or irrelevant to it.
+target/
+.mvn/timing.properties
+*.log
+*.db
+*.trace.db
+*.lock.db
+
+.git
+.gitignore
+.idea/
+.vscode/
+*.iml
+
+Dockerfile
+.dockerignore
+README.md

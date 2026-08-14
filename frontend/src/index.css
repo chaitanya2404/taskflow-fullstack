@@ -99,6 +99,35 @@ a {
   color: var(--color-primary);
 }
 
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--color-border);
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.role-badge {
+  background: #e6ecff;
+  color: #3949c9;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 /* ---- Layout ---- */
 .app-main {
   flex: 1;
@@ -192,6 +221,26 @@ a {
 .btn-sm {
   padding: 0.35rem 0.7rem;
   font-size: 0.8rem;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
 }
 
 .icon-btn {
@@ -455,6 +504,83 @@ a {
 .badge-priority-urgent {
   background: #fde0e0;
   color: var(--color-danger);
+}
+
+/* ---- Auth (login / register) ---- */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+}
+
+.auth-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 2rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-header .brand-mark {
+  width: 44px;
+  height: 44px;
+  font-size: 1.05rem;
+  border-radius: 12px;
+}
+
+.auth-header h1 {
+  font-size: 1.5rem;
+}
+
+.auth-header .page-subtitle {
+  margin-top: 0;
+  font-size: 0.9rem;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  background: #f0f1f5;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-tab {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.auth-tab-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-footnote {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
 /* ---- Modal ---- */

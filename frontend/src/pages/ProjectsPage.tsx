@@ -7,8 +7,13 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Modal } from "../components/Modal";
 import { ProjectForm } from "../components/ProjectForm";
+import { useAuth } from "../auth/useAuth";
 
 export function ProjectsPage() {
+  // Deleting a project is an ADMIN-only operation on the API, so the button is
+  // only offered to admins rather than shown and then rejected with a 403.
+  const { isAdmin } = useAuth();
+
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +76,11 @@ export function ProjectsPage() {
       await projectsApi.remove(project.id);
       setProjects((prev) => prev.filter((p) => p.id !== project.id));
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to delete project");
+      if (e instanceof ApiError && e.status === 403) {
+        alert("Deleting a project requires an ADMIN account.");
+      } else {
+        alert(e instanceof Error ? e.message : "Failed to delete project");
+      }
     }
   }
 
@@ -115,9 +124,11 @@ export function ProjectsPage() {
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(project)}>
                     Edit
                   </button>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(project)}>
-                    Delete
-                  </button>
+                  {isAdmin && (
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(project)}>
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

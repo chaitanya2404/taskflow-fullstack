@@ -1,16 +1,12 @@
 package com.taskflow.backend.controller;
 
-import tools.jackson.databind.ObjectMapper;
 import com.taskflow.backend.dto.ProjectRequest;
 import com.taskflow.backend.dto.TaskRequest;
 import com.taskflow.backend.entity.TaskPriority;
 import com.taskflow.backend.entity.TaskStatus;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
@@ -23,23 +19,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Full end-to-end integration test: real Spring context, real (H2, in-memory)
- * database, requests dispatched through MockMvc into the actual controller.
+ * database with the Flyway schema applied, requests dispatched through MockMvc
+ * into the actual controller — now carrying a real JWT obtained from
+ * {@code /api/auth/register}.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-class TaskControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class TaskControllerIntegrationTest extends AbstractApiIntegrationTest {
 
     @Test
     void fullTaskLifecycle_createReadUpdateFilterDelete() throws Exception {
+        String token = registerAndGetToken(uniqueUsername("lifecycle"));
+
         // 1. Create a project to hang the task off of
         ProjectRequest projectRequest = new ProjectRequest("Integration Test Project", "Created by MockMvc test");
         String projectJson = mockMvc.perform(post("/api/projects")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isCreated())
@@ -58,6 +51,7 @@ class TaskControllerIntegrationTest {
                 projectId);
 
         String taskJson = mockMvc.perform(post("/api/tasks")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isCreated())
@@ -69,17 +63,22 @@ class TaskControllerIntegrationTest {
         Long taskId = objectMapper.readTree(taskJson).get("id").asLong();
 
         // 3. Read it back directly
-        mockMvc.perform(get("/api/tasks/{id}", taskId))
+        mockMvc.perform(get("/api/tasks/{id}", taskId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title", is("Set up CI pipeline")));
 
         // 4. Filter tasks by project id
-        mockMvc.perform(get("/api/tasks").param("projectId", projectId.toString()))
+        mockMvc.perform(get("/api/tasks")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .param("projectId", projectId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].projectId", is(projectId.intValue())));
 
         // 5. Filter tasks by status
-        mockMvc.perform(get("/api/tasks").param("status", "TODO"))
+        mockMvc.perform(get("/api/tasks")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .param("status", "TODO"))
                 .andExpect(status().isOk());
 
         // 6. Update the task
@@ -92,6 +91,7 @@ class TaskControllerIntegrationTest {
                 taskRequest.projectId());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/tasks/{id}", taskId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -107,6 +107,7 @@ class TaskControllerIntegrationTest {
                 projectId);
 
         mockMvc.perform(post("/api/tasks")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
@@ -114,15 +115,18 @@ class TaskControllerIntegrationTest {
                 .andExpect(jsonPath("$.fieldErrors[0].field", is("title")));
 
         // 8. Not found: fetching a bogus id returns 404
-        mockMvc.perform(get("/api/tasks/{id}", 999999))
+        mockMvc.perform(get("/api/tasks/{id}", 999999)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status", is(404)));
 
         // 9. Delete the task
-        mockMvc.perform(delete("/api/tasks/{id}", taskId))
+        mockMvc.perform(delete("/api/tasks/{id}", taskId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/tasks/{id}", taskId))
+        mockMvc.perform(get("/api/tasks/{id}", taskId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isNotFound());
     }
 }

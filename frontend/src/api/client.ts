@@ -1,3 +1,4 @@
+import { readToken } from "../auth/storage";
 import type { ApiErrorBody } from "./types";
 
 export const API_BASE_URL: string =
@@ -14,20 +15,43 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Called when the API rejects a token (expired, revoked, or tampered with).
+ * AuthProvider registers a handler that drops the stored session, which in turn
+ * makes the route guard send the user back to the login page.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
+/** Login/register failures are reported in-form, not treated as a session expiry. */
+function isAuthEndpoint(path: string): boolean {
+  return path.startsWith("/api/auth/login") || path.startsWith("/api/auth/register");
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = readToken();
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options?.headers ?? {}),
       },
-      ...options,
     });
   } catch {
     throw new Error(
       "Could not reach the TaskFlow API. Is the backend running at " + API_BASE_URL + "?"
     );
+  }
+
+  if (response.status === 401 && !isAuthEndpoint(path)) {
+    onUnauthorized?.();
   }
 
   if (response.status === 204) {

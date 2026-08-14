@@ -1,0 +1,21 @@
+# Keep the build context small. node_modules in particular is reinstalled from
+# the lockfile inside the image and must never be copied in from the host.
+node_modules/
+dist/
+dist-ssr/
+
+.git
+.gitignore
+.idea/
+.vscode/
+*.log
+npm-debug.log*
+
+# Local env files - the image takes VITE_API_BASE_URL as a build arg instead.
+.env
+.env.*
+!.env.example
+
+Dockerfile
+.dockerignore
+README.md

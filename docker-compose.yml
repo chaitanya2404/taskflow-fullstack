@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------
+# TaskFlow - full stack, prod-like.
+#
+#   cp .env.example .env     # then edit the two secrets
+#   docker compose up --build
+#
+#   frontend  http://localhost:3000
+#   backend   http://localhost:8080  (Swagger UI at /swagger-ui.html)
+#
+# No secrets are baked into this file or the images. POSTGRES_PASSWORD and
+# JWT_SECRET are required and deliberately have no defaults - compose refuses to
+# start without them rather than silently falling back to a known value.
+# ---------------------------------------------------------------------------
+
+services:
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: taskflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow}
+      POSTGRES_USER: ${POSTGRES_USER:-taskflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - copy .env.example to .env}
+    volumes:
+      # Named volume, so data survives `docker compose down` (use `down -v` to
+      # actually discard it).
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready is what makes the backend's depends_on meaningful: Postgres
+      # accepts TCP connections well before it is ready to serve queries, so
+      # waiting on the port alone would still race the backend's Flyway run.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskflow} -d ${POSTGRES_DB:-taskflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [taskflow]
+
+  backend:
+    build:
+      context: ./backend
+    container_name: taskflow-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-taskflow}
+      DB_USERNAME: ${POSTGRES_USER:-taskflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - copy .env.example to .env}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env and set a long random value}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
+      # The browser only ever talks to nginx on :3000, and nginx proxies /api
+      # from that same origin, so no cross-origin request is made. Listed
+      # explicitly for anyone hitting :8080 directly from a dev server.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # Optional: seed one ADMIN account on first boot so the ADMIN-only
+      # endpoints are reachable. Off unless ADMIN_SEED_ENABLED=true.
+      ADMIN_SEED_ENABLED: ${ADMIN_SEED_ENABLED:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@taskflow.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks: [taskflow]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty => the SPA calls same-origin /api/... and nginx proxies it.
+        VITE_API_BASE_URL: ""
+    container_name: taskflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_ORIGIN: http://backend:8080
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks: [taskflow]
+
+volumes:
+  postgres-data:
+    name: taskflow-postgres-data
+
+networks:
+  taskflow:
+    name: taskflow
