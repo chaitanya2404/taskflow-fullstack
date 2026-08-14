@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Java / Maven (backend/)
+# ---------------------------------------------------------------------------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+!*/.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# IDEs
+.idea/
+*.iml
+*.iws
+.classpath
+.project
+.settings/
+.vscode/
+*.launch
+
+# H2 database files (if ever written to disk instead of in-memory)
+*.db
+*.trace.db
+*.lock.db
+
+# ---------------------------------------------------------------------------
+# Node / Vite / React (frontend/)
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Env files (never commit real secrets/config)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
