@@ -1,0 +1,107 @@
+name: CI
+
+# The repository's default branch is `main` (verified with
+# `gh repo view --json defaultBranchRef`), so both triggers target it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Nothing in this workflow writes to the repo, publishes packages, or pushes
+# images, so the token stays read-only.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR supersedes an in-flight run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend: Spring Boot 4.1 on Java 25, built with the Maven wrapper.
+  #
+  # Temurin publishes Java 25 (it is the current LTS; the Adoptium API lists 25
+  # under available_lts_releases with linux/x64 JDK assets), so no downgrade of
+  # the project's own java.version is needed.
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend (Java 25 / Maven)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          # setup-java's built-in cache keys off backend/pom.xml and restores
+          # ~/.m2/repository.
+          cache: maven
+
+      - name: Run backend tests
+        working-directory: backend
+        run: ./mvnw -B test
+
+  # ---------------------------------------------------------------------------
+  # Frontend: React 19 + TypeScript + Vite.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Node / Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Matches the node:22-alpine base used by frontend/Dockerfile.
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Images: prove both multi-stage Dockerfiles still build. Nothing is pushed
+  # anywhere - `push: false` and no registry login.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker images (build only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: taskflow-backend:ci
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: taskflow-frontend:ci

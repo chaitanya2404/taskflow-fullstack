@@ -1,5 +1,7 @@
 # TaskFlow
 
+[![CI](https://github.com/chaitanya2404/taskflow-fullstack/actions/workflows/ci.yml/badge.svg)](https://github.com/chaitanya2404/taskflow-fullstack/actions/workflows/ci.yml)
+
 TaskFlow is a full-stack task/project tracker: a Spring Boot REST API backed by JPA, and a React + TypeScript single-page app that consumes it. Accounts sign in with a JWT; a `User` owns many `Project`s, and a `Project` has many `Task`s, each with a title, description, status, priority, and due date.
 
 Built as a portfolio piece to demonstrate a complete, working full-stack Java application — layered backend architecture, stateless JWT authentication with per-account data isolation, Flyway-managed schema migrations, validated DTOs, global exception handling, OpenAPI docs, a real test suite (unit + integration), a typed React frontend with proper loading/error states, and a containerized deployment.
