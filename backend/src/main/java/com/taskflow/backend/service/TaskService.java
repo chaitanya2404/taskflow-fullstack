@@ -58,13 +58,13 @@ public class TaskService {
     }
 
     public TaskResponse create(TaskRequest request) {
-        Project project = getProjectOrThrow(request.getProjectId());
+        Project project = getProjectOrThrow(request.projectId());
         Task task = new Task(
-                request.getTitle(),
-                request.getDescription(),
-                request.getStatus(),
-                request.getPriority(),
-                request.getDueDate(),
+                request.title(),
+                request.description(),
+                request.status(),
+                request.priority(),
+                request.dueDate(),
                 project
         );
         Task saved = taskRepository.save(task);
@@ -74,16 +74,16 @@ public class TaskService {
     public TaskResponse update(Long id, TaskRequest request) {
         Task task = getTaskOrThrow(id);
 
-        if (!task.getProject().getId().equals(request.getProjectId())) {
-            Project newProject = getProjectOrThrow(request.getProjectId());
+        if (!task.getProject().getId().equals(request.projectId())) {
+            Project newProject = getProjectOrThrow(request.projectId());
             task.setProject(newProject);
         }
 
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
-        task.setStatus(request.getStatus());
-        task.setPriority(request.getPriority());
-        task.setDueDate(request.getDueDate());
+        task.setTitle(request.title());
+        task.setDescription(request.description());
+        task.setStatus(request.status());
+        task.setPriority(request.priority());
+        task.setDueDate(request.dueDate());
         return toResponse(task);
     }
 

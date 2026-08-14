@@ -1,13 +1,13 @@
 package com.taskflow.backend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.taskflow.backend.dto.ProjectRequest;
 import com.taskflow.backend.dto.TaskRequest;
 import com.taskflow.backend.entity.TaskPriority;
 import com.taskflow.backend.entity.TaskStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,13 +49,13 @@ class TaskControllerIntegrationTest {
         Long projectId = objectMapper.readTree(projectJson).get("id").asLong();
 
         // 2. Create a task under that project
-        TaskRequest taskRequest = new TaskRequest();
-        taskRequest.setTitle("Set up CI pipeline");
-        taskRequest.setDescription("Configure GitHub Actions for build + test");
-        taskRequest.setStatus(TaskStatus.TODO);
-        taskRequest.setPriority(TaskPriority.HIGH);
-        taskRequest.setDueDate(LocalDate.of(2026, 9, 30));
-        taskRequest.setProjectId(projectId);
+        TaskRequest taskRequest = new TaskRequest(
+                "Set up CI pipeline",
+                "Configure GitHub Actions for build + test",
+                TaskStatus.TODO,
+                TaskPriority.HIGH,
+                LocalDate.of(2026, 9, 30),
+                projectId);
 
         String taskJson = mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,21 +83,28 @@ class TaskControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         // 6. Update the task
-        taskRequest.setStatus(TaskStatus.IN_PROGRESS);
-        taskRequest.setTitle("Set up CI pipeline (in progress)");
+        TaskRequest updateRequest = new TaskRequest(
+                "Set up CI pipeline (in progress)",
+                taskRequest.description(),
+                TaskStatus.IN_PROGRESS,
+                taskRequest.priority(),
+                taskRequest.dueDate(),
+                taskRequest.projectId());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/tasks/{id}", taskId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+                        .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("IN_PROGRESS")));
 
         // 7. Validation failure: blank title should return 400 with field errors
-        TaskRequest invalidRequest = new TaskRequest();
-        invalidRequest.setTitle(""); // blank -> @NotBlank violation
-        invalidRequest.setStatus(TaskStatus.TODO);
-        invalidRequest.setPriority(TaskPriority.LOW);
-        invalidRequest.setProjectId(projectId);
+        TaskRequest invalidRequest = new TaskRequest(
+                "", // blank -> @NotBlank violation
+                null,
+                TaskStatus.TODO,
+                TaskPriority.LOW,
+                null,
+                projectId);
 
         mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)

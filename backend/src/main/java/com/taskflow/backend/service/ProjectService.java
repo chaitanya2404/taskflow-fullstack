@@ -33,15 +33,15 @@ public class ProjectService {
     }
 
     public ProjectResponse create(ProjectRequest request) {
-        Project project = new Project(request.getName(), request.getDescription());
+        Project project = new Project(request.name(), request.description());
         Project saved = projectRepository.save(project);
         return toResponse(saved);
     }
 
     public ProjectResponse update(Long id, ProjectRequest request) {
         Project project = getProjectOrThrow(id);
-        project.setName(request.getName());
-        project.setDescription(request.getDescription());
+        project.setName(request.name());
+        project.setDescription(request.description());
         return toResponse(project);
     }
 

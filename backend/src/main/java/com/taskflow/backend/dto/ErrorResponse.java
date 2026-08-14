@@ -3,73 +3,27 @@ package com.taskflow.backend.dto;
 import java.time.Instant;
 import java.util.List;
 
-public class ErrorResponse {
+public record ErrorResponse(
+        Instant timestamp,
+        int status,
+        String error,
+        String message,
+        String path,
+        List<FieldErrorDetail> fieldErrors) {
 
-    private Instant timestamp;
-    private int status;
-    private String error;
-    private String message;
-    private String path;
-    private List<FieldErrorDetail> fieldErrors;
-
-    public ErrorResponse() {
-        this.timestamp = Instant.now();
+    public ErrorResponse {
+        // defensive copy; null stays null so it is omitted from JSON
+        // (spring.jackson.default-property-inclusion=non_null)
+        fieldErrors = (fieldErrors == null) ? null : List.copyOf(fieldErrors);
     }
 
     public ErrorResponse(int status, String error, String message, String path) {
-        this.timestamp = Instant.now();
-        this.status = status;
-        this.error = error;
-        this.message = message;
-        this.path = path;
+        this(status, error, message, path, null);
     }
 
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public int getStatus() {
-        return status;
-    }
-
-    public void setStatus(int status) {
-        this.status = status;
-    }
-
-    public String getError() {
-        return error;
-    }
-
-    public void setError(String error) {
-        this.error = error;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    public List<FieldErrorDetail> getFieldErrors() {
-        return fieldErrors;
-    }
-
-    public void setFieldErrors(List<FieldErrorDetail> fieldErrors) {
-        this.fieldErrors = fieldErrors;
+    public ErrorResponse(int status, String error, String message, String path,
+                         List<FieldErrorDetail> fieldErrors) {
+        this(Instant.now(), status, error, message, path, fieldErrors);
     }
 
     public record FieldErrorDetail(String field, String message) {

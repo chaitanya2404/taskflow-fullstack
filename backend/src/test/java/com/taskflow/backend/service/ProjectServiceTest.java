@@ -54,8 +54,8 @@ class ProjectServiceTest {
         List<ProjectResponse> result = projectService.findAll();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("Website Revamp");
-        assertThat(result.get(0).getId()).isEqualTo(1L);
+        assertThat(result.get(0).name()).isEqualTo("Website Revamp");
+        assertThat(result.get(0).id()).isEqualTo(1L);
     }
 
     @Test
@@ -64,8 +64,8 @@ class ProjectServiceTest {
 
         ProjectResponse response = projectService.findById(1L);
 
-        assertThat(response.getName()).isEqualTo("Website Revamp");
-        assertThat(response.getTaskCount()).isZero();
+        assertThat(response.name()).isEqualTo("Website Revamp");
+        assertThat(response.taskCount()).isZero();
     }
 
     @Test
@@ -88,8 +88,8 @@ class ProjectServiceTest {
 
         ProjectResponse response = projectService.create(request);
 
-        assertThat(response.getId()).isEqualTo(42L);
-        assertThat(response.getName()).isEqualTo("New Project");
+        assertThat(response.id()).isEqualTo(42L);
+        assertThat(response.name()).isEqualTo("New Project");
         verify(projectRepository, times(1)).save(any(Project.class));
     }
 
@@ -100,8 +100,8 @@ class ProjectServiceTest {
 
         ProjectResponse response = projectService.update(1L, request);
 
-        assertThat(response.getName()).isEqualTo("Renamed Project");
-        assertThat(response.getDescription()).isEqualTo("Updated description");
+        assertThat(response.name()).isEqualTo("Renamed Project");
+        assertThat(response.description()).isEqualTo("Updated description");
     }
 
     @Test

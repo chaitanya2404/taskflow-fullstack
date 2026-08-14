@@ -7,7 +7,7 @@ Built as a portfolio piece to demonstrate a complete, working full-stack Java ap
 ## Tech stack
 
 **Backend** (`backend/`)
-- Java 17, Spring Boot 3.3
+- Java 25 (LTS), Spring Boot 4.1
 - Spring Web, Spring Data JPA, Bean Validation
 - H2 (in-memory, `dev` profile) / PostgreSQL (`prod` profile, documented)
 - springdoc-openapi (Swagger UI)
@@ -79,7 +79,7 @@ taskflow-fullstack/
 ## Getting started
 
 ### Prerequisites
-- Java 17+ and Maven (or use the instructions below if you only have Homebrew: `brew install openjdk@17 maven`)
+- Java 25+ and Maven (or use the instructions below if you only have Homebrew: `brew install openjdk@25 maven`)
 - Node.js 18+ and npm
 
 ### Backend
@@ -140,7 +140,7 @@ Validation errors return `400` with a `fieldErrors` array (field + message); mis
 This project ships configured for zero-setup local development (H2 in-memory), but is structured to move to a containerized production setup:
 
 1. **Database**: run PostgreSQL (e.g. the official `postgres:16` Docker image) and start the backend with `--spring.profiles.active=prod`, supplying `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` as environment variables (see the `prod` block in `backend/src/main/resources/application.yml`). Use a real migration tool (Flyway/Liquibase) instead of `ddl-auto` for schema changes in production.
-2. **Backend container**: multi-stage Dockerfile — `maven:3.9-eclipse-temurin-17` to build the jar, then copy it into a slim `eclipse-temurin:17-jre` runtime image; expose port 8080.
+2. **Backend container**: multi-stage Dockerfile — `maven:3.9-eclipse-temurin-25` to build the jar, then copy it into a slim `eclipse-temurin:25-jre` runtime image; expose port 8080.
 3. **Frontend container**: `npm run build` produces static assets in `frontend/dist/`; serve them from an `nginx:alpine` image (or a CDN/static host), with `VITE_API_BASE_URL` baked in at build time to point at the deployed backend's public URL.
 4. **Orchestration**: a `docker-compose.yml` with three services (`postgres`, `backend`, `frontend`) is a natural next step for local "prod-like" testing; for real deployment, this maps cleanly onto ECS/Fargate, a Kubernetes Deployment + Service, or a PaaS like Render/Railway/Fly.io, with managed Postgres (RDS, Cloud SQL, etc.) instead of a self-hosted container.
 5. **Config/secrets**: database credentials and any future auth secrets would move to environment variables / a secrets manager — never committed (see `.gitignore`, which excludes `.env*` except `.env.example`).

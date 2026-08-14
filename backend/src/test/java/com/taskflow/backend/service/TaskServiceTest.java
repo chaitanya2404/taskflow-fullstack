@@ -72,9 +72,9 @@ class TaskServiceTest {
 
         TaskResponse response = taskService.findById(10L);
 
-        assertThat(response.getTitle()).isEqualTo("Design homepage");
-        assertThat(response.getProjectId()).isEqualTo(1L);
-        assertThat(response.getStatus()).isEqualTo(TaskStatus.TODO);
+        assertThat(response.title()).isEqualTo("Design homepage");
+        assertThat(response.projectId()).isEqualTo(1L);
+        assertThat(response.status()).isEqualTo(TaskStatus.TODO);
     }
 
     @Test
@@ -103,7 +103,7 @@ class TaskServiceTest {
         List<TaskResponse> result = taskService.findByProject(1L);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getProjectName()).isEqualTo("Website Revamp");
+        assertThat(result.get(0).projectName()).isEqualTo("Website Revamp");
     }
 
     @Test
@@ -113,18 +113,18 @@ class TaskServiceTest {
         List<TaskResponse> result = taskService.findByStatus(TaskStatus.TODO);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getStatus()).isEqualTo(TaskStatus.TODO);
+        assertThat(result.get(0).status()).isEqualTo(TaskStatus.TODO);
     }
 
     @Test
     void create_whenProjectExists_savesTask() {
-        TaskRequest request = new TaskRequest();
-        request.setTitle("Write tests");
-        request.setDescription("Add unit tests for TaskService");
-        request.setStatus(TaskStatus.TODO);
-        request.setPriority(TaskPriority.MEDIUM);
-        request.setDueDate(LocalDate.of(2026, 9, 15));
-        request.setProjectId(1L);
+        TaskRequest request = new TaskRequest(
+                "Write tests",
+                "Add unit tests for TaskService",
+                TaskStatus.TODO,
+                TaskPriority.MEDIUM,
+                LocalDate.of(2026, 9, 15),
+                1L);
 
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
@@ -135,18 +135,20 @@ class TaskServiceTest {
 
         TaskResponse response = taskService.create(request);
 
-        assertThat(response.getId()).isEqualTo(55L);
-        assertThat(response.getTitle()).isEqualTo("Write tests");
+        assertThat(response.id()).isEqualTo(55L);
+        assertThat(response.title()).isEqualTo("Write tests");
         verify(taskRepository, times(1)).save(any(Task.class));
     }
 
     @Test
     void create_whenProjectMissing_throwsNotFoundAndDoesNotSave() {
-        TaskRequest request = new TaskRequest();
-        request.setTitle("Orphan task");
-        request.setStatus(TaskStatus.TODO);
-        request.setPriority(TaskPriority.LOW);
-        request.setProjectId(404L);
+        TaskRequest request = new TaskRequest(
+                "Orphan task",
+                null,
+                TaskStatus.TODO,
+                TaskPriority.LOW,
+                null,
+                404L);
 
         when(projectRepository.findById(404L)).thenReturn(Optional.empty());
 
@@ -160,19 +162,19 @@ class TaskServiceTest {
     void update_whenFound_updatesFields() {
         when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
 
-        TaskRequest request = new TaskRequest();
-        request.setTitle("Design homepage v2");
-        request.setDescription("Updated wireframes");
-        request.setStatus(TaskStatus.IN_PROGRESS);
-        request.setPriority(TaskPriority.URGENT);
-        request.setDueDate(LocalDate.of(2026, 10, 1));
-        request.setProjectId(1L);
+        TaskRequest request = new TaskRequest(
+                "Design homepage v2",
+                "Updated wireframes",
+                TaskStatus.IN_PROGRESS,
+                TaskPriority.URGENT,
+                LocalDate.of(2026, 10, 1),
+                1L);
 
         TaskResponse response = taskService.update(10L, request);
 
-        assertThat(response.getTitle()).isEqualTo("Design homepage v2");
-        assertThat(response.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
-        assertThat(response.getPriority()).isEqualTo(TaskPriority.URGENT);
+        assertThat(response.title()).isEqualTo("Design homepage v2");
+        assertThat(response.status()).isEqualTo(TaskStatus.IN_PROGRESS);
+        assertThat(response.priority()).isEqualTo(TaskPriority.URGENT);
     }
 
     @Test

@@ -36,9 +36,9 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 "Validation failed for one or more fields",
-                request.getRequestURI()
+                request.getRequestURI(),
+                fieldErrors
         );
-        body.setFieldErrors(fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
